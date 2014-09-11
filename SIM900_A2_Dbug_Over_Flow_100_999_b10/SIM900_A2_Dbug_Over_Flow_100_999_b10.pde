@@ -236,6 +236,7 @@ void loop()// loop การทำงาน
           _checkloop_out = 0;
           Serial.print("GPRS Status");
           Serial.println(_GPRS_STATUS);
+          
           while (_GPRS_STATUS == 0){
             myString.begin();
             Serial.println("Connecting Server");
@@ -245,27 +246,54 @@ void loop()// loop การทำงาน
             while (_check == 0){
               readATString(15000);
               ProcessATstatus();      
-              _checkloop_in++;                            
+              _checkloop_in++;
+          Serial.print("_checkloop_in");
+          Serial.println(_checkloop_in);               
                 if(_checkloop_in >= 10){            //ป้องกันการติดลูป ถ้าวนลูปถึง 10 ครั้งให้ออกมาจาก while
                   _check = 1;
                   break;
                 }
             }
             _check = 0;
-            _checkloop_out++;                         
+            _checkloop_out++; 
+          Serial.print("_checkloop_out");
+          Serial.println(_checkloop_out);            
                 if(_checkloop_out >= 5){             //ป้องกันการติดลูป ถ้าวนลูปถึง 5 ครั้งให้ออกมาจาก while  
                   break;
                   _GPRS_STATUS = 1;
                 }
           }
+          Serial.print("_countconnectserver");
+          Serial.println(_countconnectserver); 
           _countconnectserver++;
           if (_countconnectserver >= 3){              //ป้องกันการติดลูป ถ้าวนลูปถึง 3 ครั้งให้ออกมาจาก while      
             _GSM_POWER = 0;
             break;
           }
+          /*
+          Serial.print("GPRS Status out");
+          Serial.println(_GPRS_STATUS);
+          
+          Serial.print("_GSM_POWER out");
+          Serial.println(_GSM_POWER);
+          */
         }
       }
+      
+         // Serial.print("GPRS Status off loop");
+         // Serial.println(_GPRS_STATUS);
+          
+         // Serial.print(" _GSM_POWER off loop");
+         // Serial.println( _GSM_POWER);
+      
       _GPRS_STATUS = 0;
+      
+         Serial.print("GPRS Status off loop");
+         Serial.println(_GPRS_STATUS);
+          
+         Serial.print("_GSM_POWER off loop");
+         Serial.println(_GSM_POWER);
+      
       wdt_reset();
       mygsm.println("AT+CIPSEND");      
       delay(250);
@@ -274,14 +302,14 @@ void loop()// loop การทำงาน
       wdt_reset();
       bool newdata = false;
       unsigned long start = millis();
-      //int start = 0;
-      while (millis() - start < 1000){
+     
+      while (millis() - start < 1000 && millis() <= start){
         Serial.print(millis());
         Serial.println(start);
-        //start++;
+        
         if (feedgps()){
           newdata = true;
-          //break;
+         
         }
         }
         wdt_reset();
@@ -318,9 +346,9 @@ void loop()// loop การทำงาน
       //Serial.println(" HTTP/1.1");
       mygsm.println(" HTTP/1.1");   //HTTP/1.1 ต้อง enter 2 ครั้งก่อนจบการทำงานด้วย Ctrl+Z ส่วน HTTP/1.0 enter ครั้งเดียว ตามหลักการทำงาน potocal
       delay(250);
-      Serial.println("host:www.surinrobot.com");
       mygsm.println("host:www.surinrobot.com");  
       delay(250);
+      Serial.println("host:www.surinrobot.com");
       mygsm.println("");             
       delay(250);
       mygsm.println(0x1A,BYTE);      //เป็นคำสั่งส่งค่า หรือ Ctrl+Z นั้นเอง 
@@ -374,8 +402,10 @@ void loop()// loop การทำงาน
 void ShowSerialData()
 {
   Serial.print("SHOW: ");
-  while(mygsm.available()!=0)
-    Serial.write(mygsm.read());
+  if (mygsm.available())
+      {
+    //Serial.write(mygsm.read());
+      }
 }
 
 void Check_SMS(){
@@ -676,6 +706,7 @@ void powerOnGPRS(){
           rxBuffer[index] = mygsm.read();
           index++;
         }
+        //Serial.write(rxBuffer);
         if(strstr(rxBuffer,"Call Ready") != NULL)
         {
           Serial.println("Call Ready");
@@ -757,6 +788,9 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
       mygsm.println(atCommand);
     }
     _timeOut = millis() + (1000*atTimeOut);
+      Serial.print(millis());
+      Serial.print("to:");
+      Serial.println(_timeOut);
     while (millis() < _timeOut)
     {
       wdt_reset();
@@ -767,16 +801,19 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
         buffer[index] = '\0';
         if(strstr(buffer,"ERROR")!=NULL) //if there is an error send AT command again
         {
+          //Serial.println("Error");
           atError = true;
           break;
         }
         if(strstr(buffer,"OK")!=NULL) //if there is no error then done
         {
           //();
+          //Serial.println("OK");
           return(0);
         }
         if (index == 198) //Buffer is full
         { 
+          //Serial.println("Buffer full");
           return(1);
         }
       }

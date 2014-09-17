@@ -691,6 +691,7 @@ void powerOnGPRS(){
         Serial.println("POWER GSM HIGH");
         registeredOnNetwork = checkNetworkRegistration();
         Serial.println("off check network");
+        Serial.println(registeredOnNetwork);
         if(registeredOnNetwork == 1)
           {
             Serial.println("no network");
@@ -755,10 +756,14 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
     {
       mygsm.println(atCommand);
     }
-    //_timeOut = millis() + (1000*atTimeOut);
+    _timeOut = millis() + (1000*atTimeOut);
     int i = 0;
-    while (i < 100)
+    delay(10);
+    while (i<500  /*millis() < _timeOut*/)
     {
+      Serial.print(millis());
+      Serial.print(" to ");
+      Serial.println(_timeOut);
       wdt_reset();
       if (mygsm.available())
       {

@@ -12,7 +12,7 @@
 #define SIMSIZE            3   //total storage space on SIM card
 
 uint8_t commandNumber = 0xFF;
-uint8_t registeredOnNetwork = 1;
+int registeredOnNetwork = 1;
 uint8_t replyMessageType = 0;
 uint8_t index = 0;
 
@@ -122,7 +122,7 @@ void NO_CARRIER()        //เมื่อมีการโทรเข้า�
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   mygsm.begin(9600);        //กำหนดให้ GSM ที่ 9600
   mygps.begin(9600);    // GPS หลายๆตัวที่ทดลองจะใช้ค่า rate ที่ 4800 และ 9600 ให้ปรับเปลี่ยนตามการทำงานของอุปกรณ์
   pinMode(GPRSSTATUS,INPUT);
@@ -212,6 +212,10 @@ void loop()// loop การทำงาน
       mygsm.println("AT+CIFSR");
       delay(500);
       if (_GSM_Ready == 1){
+          Serial.print("_GPRS_STATUS    ");
+          Serial.println(_GPRS_STATUS);
+          Serial.print("_GSM_POWER    ");
+          Serial.println(_GSM_POWER);
         while ( _GPRS_STATUS == 0 && _GSM_POWER == 1 )
         {
           rxBuffer[buffidx] = '0';
@@ -234,66 +238,37 @@ void loop()// loop การทำงาน
           delay(100);
           wdt_reset();
           _checkloop_out = 0;
-          Serial.print("GPRS Status");
-          Serial.println(_GPRS_STATUS);
-          
+
           while (_GPRS_STATUS == 0){
             myString.begin();
-            Serial.println("Connecting Server");
+            //Serial.println("Connecting Server");
             mygsm.println("AT+CIPSTART=\"TCP\",\"www.surinrobot.com\",\"80\"");  
             delay(500);
             _checkloop_in = 0;  
             while (_check == 0){
               readATString(15000);
               ProcessATstatus();      
-              _checkloop_in++;
-          Serial.print("_checkloop_in");
-          Serial.println(_checkloop_in);               
+              _checkloop_in++;                            
                 if(_checkloop_in >= 10){            //ป้องกันการติดลูป ถ้าวนลูปถึง 10 ครั้งให้ออกมาจาก while
                   _check = 1;
                   break;
                 }
             }
             _check = 0;
-            _checkloop_out++; 
-          Serial.print("_checkloop_out");
-          Serial.println(_checkloop_out);            
+            _checkloop_out++;                         
                 if(_checkloop_out >= 5){             //ป้องกันการติดลูป ถ้าวนลูปถึง 5 ครั้งให้ออกมาจาก while  
-                  break;
                   _GPRS_STATUS = 1;
+                  break;
                 }
           }
-          Serial.print("_countconnectserver");
-          Serial.println(_countconnectserver); 
           _countconnectserver++;
           if (_countconnectserver >= 3){              //ป้องกันการติดลูป ถ้าวนลูปถึง 3 ครั้งให้ออกมาจาก while      
             _GSM_POWER = 0;
             break;
           }
-          /*
-          Serial.print("GPRS Status out");
-          Serial.println(_GPRS_STATUS);
-          
-          Serial.print("_GSM_POWER out");
-          Serial.println(_GSM_POWER);
-          */
         }
       }
-      
-         // Serial.print("GPRS Status off loop");
-         // Serial.println(_GPRS_STATUS);
-          
-         // Serial.print(" _GSM_POWER off loop");
-         // Serial.println( _GSM_POWER);
-      
       _GPRS_STATUS = 0;
-      
-         Serial.print("GPRS Status off loop");
-         Serial.println(_GPRS_STATUS);
-          
-         Serial.print("_GSM_POWER off loop");
-         Serial.println(_GSM_POWER);
-      
       wdt_reset();
       mygsm.println("AT+CIPSEND");      
       delay(250);
@@ -302,16 +277,13 @@ void loop()// loop การทำงาน
       wdt_reset();
       bool newdata = false;
       unsigned long start = millis();
-      delay(250);
+      delay(10);
       while (millis() - start < 1000 && millis() > start){
-        //Serial.print(millis());
-        //Serial.println(start);
-        
-        if (feedgps()){
+        //Serial.println("feed gps");
+        if (feedgps())
           newdata = true;
-         
         }
-        }
+        Serial.println(newdata);
         wdt_reset();
         if (newdata){
           myString.begin();
@@ -320,15 +292,13 @@ void loop()// loop การทำงาน
         }else{
           wdt_reset();
           mygsm.print(CHAR_GPS01);
-          
           mygsm.print("&lon=");
           mygsm.print(CHAR_GPS02);
-          
           //AGE();
           mygsm.print("&speed=999");
         }
       wdt_reset();
-      Serial.print("&device_id=");
+      //Serial.print("&device_id=");
       delay(100);
       mygsm.print("&device_id=");
       delay(250);
@@ -337,7 +307,7 @@ void loop()// loop การทำงาน
       delay(250);
       mygsm.print(Device_id);
       delay(250);
-      Serial.print("&b=");
+      //Serial.print("&b=");
       mygsm.print("&b=");
       delay(250);
       Serial.print(build);
@@ -346,24 +316,27 @@ void loop()// loop การทำงาน
       //Serial.println(" HTTP/1.1");
       mygsm.println(" HTTP/1.1");   //HTTP/1.1 ต้อง enter 2 ครั้งก่อนจบการทำงานด้วย Ctrl+Z ส่วน HTTP/1.0 enter ครั้งเดียว ตามหลักการทำงาน potocal
       delay(250);
+      //Serial.println("host:www.surinrobot.com");
       mygsm.println("host:www.surinrobot.com");  
       delay(250);
-      Serial.println("host:www.surinrobot.com");
       mygsm.println("");             
       delay(250);
       mygsm.println(0x1A,BYTE);      //เป็นคำสั่งส่งค่า หรือ Ctrl+Z นั้นเอง 
       Serial.println("Ctrl+Z");  
-      digitalWrite(led,LOW);      //LED pin 13 จะดับเพื่อบอกว่าสิ้นสุดการส่งค่า หรือ เพื่อให้รู้ว่าไม่มีการทำคำสั่งการส่งค่าไปยังserver
-      ShowSerialData();
       delay(1500);
+      //toSerial();
+      wdt_reset();
       mygsm.println("");
       mygsm.println("AT+CIPCLOSE = 1");
       delay(1000);
+      digitalWrite(led,LOW);      //LED pin 13 จะดับเพื่อบอกว่าสิ้นสุดการส่งค่า หรือ เพื่อให้รู้ว่าไม่มีการทำคำสั่งการส่งค่าไปยังserve
+      wdt_reset();
       _checkloop_in = 0;  
       _GSM_Ready = 1;
       _check = 0;
       //check_timer();
-      wdtSetup();
+      //wdtSetup();
+      Serial.println("passwdt");
       Check_SMS();
       if (_ring == 1)
         {
@@ -374,8 +347,6 @@ void loop()// loop การทำงาน
     }
     }    
   } 
-  Serial.print("count off");
-  Serial.println(_Count_off);
    if (_Count_off >= 6)
    {           //ถ้าเชื่อมต่อเน็ตไม่ได้เป็นจำนวน 20 รอบของ loop การทำงาน ให้ทำการปิด SIM900 เพื่อแก้ปัญหาการเปลี่ยนแปลงค่าระหว่าง ระบบผู้ให้บริการกับ sim 900 ก็ให้เกิดการค้างของ sim900
       wdtSetup();
@@ -399,13 +370,12 @@ void loop()// loop การทำงาน
   _GPRS_STATUS = 0;
 }
 
-void ShowSerialData()
+void toSerial()
 {
-  Serial.print("SHOW: ");
-  if (mygsm.available())
-      {
-    //Serial.write(mygsm.read());
-      }
+  while(mygsm.available()!=0)
+  {
+    Serial.write(mygsm.read());
+  }
 }
 
 void Check_SMS(){
@@ -544,17 +514,14 @@ void printFloat(double number, int digits){  //ฟังก์ชั่น ก�
    wdt_reset();
    printFloat(gps.f_speed_kmph());
    mygsm.print(myString);
-   Serial.print(myString);
    myString.begin();
    wdt_reset();
  }
- 
 bool feedgps()
 {
   //
   while (mygps.available())
   {
-    Serial.println("gps");
     if (gps.encode(mygps.read()))
     return true;
   }
@@ -706,7 +673,6 @@ void powerOnGPRS(){
           rxBuffer[index] = mygsm.read();
           index++;
         }
-        //Serial.write(rxBuffer);
         if(strstr(rxBuffer,"Call Ready") != NULL)
         {
           Serial.println("Call Ready");
@@ -718,14 +684,14 @@ void powerOnGPRS(){
       delay(7000);
       check_power();
     }
-
+ 
     if(_GSM_State==HIGH)
       { 
         wdt_reset();
         Serial.println("POWER GSM HIGH");
         registeredOnNetwork = checkNetworkRegistration();
-        Serial.println(registeredOnNetwork);
-        if(registeredOnNetwork)
+        Serial.println("off check network");
+        if(registeredOnNetwork == 1)
           {
             Serial.println("no network");
             return; 
@@ -755,16 +721,16 @@ void powerOnGPRS(){
         
 }
 
-uint8_t checkNetworkRegistration()           //เช็คความพร้อมของเครื่อข่าย
+int checkNetworkRegistration()           //เช็คความพร้อมของเครื่อข่าย
 {
   wdt_reset();
   sendATCommand(CREG,rxBuffer,30,0,false);  //check network registration status
   if(strstr(rxBuffer,",1") != NULL || strstr(rxBuffer,",5") != NULL)
   {
     _GSM_POWER = 1;
-    return(0); //GPRS is registered on the network
+    return 0; //GPRS is registered on the network
   }
-  return(1); //GPRS is not registered on the network
+  return 1; //GPRS is not registered on the network
 }
 
 uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsNumber,boolean YN)
@@ -789,8 +755,9 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
     {
       mygsm.println(atCommand);
     }
-    _timeOut = millis() + (1000*atTimeOut);
-    while (millis() < _timeOut)
+    //_timeOut = millis() + (1000*atTimeOut);
+    int i = 0;
+    while (i < 100)
     {
       wdt_reset();
       if (mygsm.available())
@@ -800,23 +767,22 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
         buffer[index] = '\0';
         if(strstr(buffer,"ERROR")!=NULL) //if there is an error send AT command again
         {
-          //Serial.println("Error");
           atError = true;
           break;
         }
         if(strstr(buffer,"OK")!=NULL) //if there is no error then done
         {
           //();
-          //Serial.println("OK");
           return(0);
         }
         if (index == 198) //Buffer is full
         { 
-          //Serial.println("Buffer full");
           return(1);
         }
       }
+      i++;
     }
+    Serial.println("out at command loop");
     if(atError)
     {
       continue;
@@ -827,6 +793,7 @@ uint8_t sendATCommand(const char *atCommand,char *buffer, int atTimeOut,int smsN
   }
   return(2);
 }
+
 uint8_t executeSMSCommand(uint8_t _commandNumber,char *_rxBuffer,char *_replyBack, uint8_t _replyMessageType)
 {
   //Serial.print("executeSMS");

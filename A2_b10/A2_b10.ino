@@ -73,7 +73,7 @@ void setup()
         +CGATT:0
         OK
     ***/
-    while(sendATcommand("AT+CGATT=1", "OK", 2000)==0);
+    while(sendATcommand("AT+CGATT=1", "OK", 3000)==0);
     Serial.println("GPRS Attached");
     
           /***
@@ -85,13 +85,13 @@ void setup()
         +CGATT:0
         OK
     ***/
-    while(sendATcommand("AT+COPS=?", "OK", 2000)==0);
+    while(sendATcommand("AT+COPS=?", "OK", 3000)==0);
     Serial.println("GPRS Attached");
     
    /***
        Query IP address
     ***/
-    while(sendATcommand("AT+CIFSR", "OK", 2000)==0);
+    while(sendATcommand("AT+CIFSR", "OK", 3000)==0);
     Serial.println("GPRS IP pass");
     
 }

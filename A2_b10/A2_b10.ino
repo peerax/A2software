@@ -60,8 +60,8 @@ void setup()
     int answer1 = sendATcommand("AT+CREG?", "+CREG: 1,5", 500);
         Serial.print("AT+CREG? = ");
     Serial.println(answer1);
-    while( (sendATcommand("AT+CREG?", "+CREG: 1,1", 500) || 
-            sendATcommand("AT+CREG?", "+CREG: 1,5", 500)));
+    while( (sendATcommand("AT+CREG?", "+CREG: 1,1", 500) == 0 || 
+            sendATcommand("AT+CREG?", "+CREG: 1,5", 500) == 0));
   Serial.println("connected");
   
       /***
@@ -73,9 +73,7 @@ void setup()
         +CGATT:0
         OK
     ***/
-    answer1 = sendATcommand("AT+CGATT=1", "OK", 2000);
-    Serial.print("Attach to GPRS = ");
-    Serial.println(answer1);
+    while(sendATcommand("AT+CGATT=1", "OK", 2000)==0);
     Serial.println("GPRS Attached");
     
           /***
@@ -87,42 +85,53 @@ void setup()
         +CGATT:0
         OK
     ***/
-    answer1 = sendATcommand("AT+COPS=?", "OK", 2000);
-    Serial.print("Attach to GPRS = ");
-    Serial.println(answer1);
+    while(sendATcommand("AT+COPS=?", "OK", 2000)==0);
     Serial.println("GPRS Attached");
     
    /***
        Query IP address
     ***/
-    answer1 = sendATcommand("AT+CIFSR", "OK", 2000);
-    Serial.print("IP GPRS = ");
-    Serial.println(answer1);
+    while(sendATcommand("AT+CIFSR", "OK", 2000)==0);
     Serial.println("GPRS IP pass");
     
 }
 
 void loop()
 {
-    getGPS();
- 
+    //getGPS();
     digitalWrite(linkLED, LOW);
+    // Debug: if we haven't seen lots of data in 5 seconds, something's wrong.
+if (millis() > 5000 && gps.charsProcessed() < 10) // uh oh
+{
+  Serial.println("ERROR: not getting any GPS data!");
+  // dump the stream to Serial
+  Serial.println("GPS stream dump:");
+  while (true) // infinite loop
+    if (myGPS.available() > 0) // any data coming in?
+      Serial.write(myGPS.read());
+}
 }
 
 void getGPS()
 {
     digitalWrite(linkLED, HIGH);
-    Serial.print("acc gps :  ");
-    Serial.println(myGPS.available());
-      while (myGPS.available() >= 0)
+    //Serial.print("Sentences that failed checksum=");
+    //Serial.println(gps.failedChecksum());
+ 
+    // Testing overflow in SoftwareSerial is sometimes useful too.
+    Serial.print("Soft Serial device overflowed? ");
+    Serial.println(myGPS.overflow() ? "YES!" : "No");
+
+      while (myGPS.available() > 0)
       {
         
         gps.encode(myGPS.read());
     
-        Serial.print("LAT="); Serial.print(gps.location.lat(), 6);
-        Serial.print("  LON="); Serial.print(gps.location.lng(), 6);
-        Serial.print("  Speed=");Serial.println(gps.speed.kmph());
-        
+       if(gps.location.isUpdated()){
+            Serial.print("LAT="); Serial.print(gps.location.lat(), 6);
+            Serial.print("  LON="); Serial.print(gps.location.lng(), 6);
+            Serial.print("  Speed=");Serial.println(gps.speed.kmph());
+       }
      }
 }
 

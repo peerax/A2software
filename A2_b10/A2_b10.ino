@@ -1,4 +1,4 @@
-#include "TinyGPS++.h"
+#include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 #include <EEPROM.h>
 
@@ -9,8 +9,9 @@
 #define SIMSIZE          3   //total storage space on SIM card
 #define gsmRx            4   // Rx to Sim900
 #define gsmTx            5   // Tx to Sim900
-#define gpsRx            2   // Rx to GPS
-#define gpsTx            3   // Tx to GPS
+
+static const int gpsRx = 2, gpsTx = 3;
+static const uint32_t GPSBaud = 9600;
 
 String Device_id;
 TinyGPSPlus gps;
@@ -21,20 +22,22 @@ char inChar;
 int index;
 char inData[200];
 
-SoftwareSerial myGPS =  SoftwareSerial(gpsRx, gpsTx);
-SoftwareSerial myGSM =  SoftwareSerial(gsmRx, gsmTx);
+SoftwareSerial myGPS(gpsRx, gpsTx);
+SoftwareSerial myGSM(gsmRx, gsmTx);
 
 void setup()
 {
-  _gpsError = 0;
-  Serial.begin(9600);
-  myGPS.begin(9600);
+  myGPS.begin(GPSBaud);
   myGSM.begin(9600);
+  _gpsError = 0;
+  Serial.begin(115200);
   
   pinMode(gpsRx, INPUT);
   pinMode(gpsTx, OUTPUT);
   pinMode(gsmRx, INPUT);
   pinMode(gsmTx, OUTPUT);
+  
+
   
   pinMode(SIM900STATUS, INPUT);
   pinMode(SIM900SWITCH, OUTPUT);
@@ -48,6 +51,7 @@ void setup()
   
   device_id();
   delay(5000);
+  /*
   Serial.println(Device_id);
 
   if (myGSM.available()){
@@ -60,10 +64,9 @@ void setup()
     int answer1 = sendATcommand("AT+CREG?", "+CREG: 1,5", 500);
         Serial.print("AT+CREG? = ");
     Serial.println(answer1);
-    while( (sendATcommand("AT+CREG?", "+CREG: 1,1", 500) == 0 || 
-            sendATcommand("AT+CREG?", "+CREG: 1,5", 500) == 0));
+    while(sendATcommand("AT+CREG?", "+CREG: 1,1", 500) == 0);
   Serial.println("connected");
-  
+  */
       /***
         Attach to GPRS network
         
@@ -73,8 +76,8 @@ void setup()
         +CGATT:0
         OK
     ***/
-    while(sendATcommand("AT+CGATT=1", "OK", 3000)==0);
-    Serial.println("GPRS Attached");
+    //while(sendATcommand("AT+CGATT=1", "OK", 3000)==0);
+    //Serial.println("GPRS Attached");
     
           /***
         Attach to GPRS network
@@ -85,54 +88,55 @@ void setup()
         +CGATT:0
         OK
     ***/
-    while(sendATcommand("AT+COPS=?", "OK", 3000)==0);
-    Serial.println("GPRS Attached");
+    //while(sendATcommand("AT+COPS=?", "OK", 3000)==0);
+    //Serial.println("GPRS Attached");
     
    /***
        Query IP address
     ***/
-    while(sendATcommand("AT+CIFSR", "OK", 3000)==0);
-    Serial.println("GPRS IP pass");
-    
+    //while(sendATcommand("AT+CIFSR", "OK", 3000)==0);
+    //Serial.println("GPRS IP pass");
+   
 }
 
 void loop()
 {
-    //getGPS();
+  Serial.println("ddd");
+    smartDelay(1000);
+    printFloat(gps.location.lat(), gps.location.isValid(), 11, 6);
+    printFloat(gps.location.lng(), gps.location.isValid(), 12, 6);
     digitalWrite(linkLED, LOW);
-    // Debug: if we haven't seen lots of data in 5 seconds, something's wrong.
-if (millis() > 5000 && gps.charsProcessed() < 10) // uh oh
-{
-  Serial.println("ERROR: not getting any GPS data!");
-  // dump the stream to Serial
-  Serial.println("GPS stream dump:");
-  while (true) // infinite loop
-    if (myGPS.available() > 0) // any data coming in?
-      Serial.write(myGPS.read());
-}
 }
 
-void getGPS()
+static void printFloat(float val, bool valid, int len, int prec)
 {
-    digitalWrite(linkLED, HIGH);
-    //Serial.print("Sentences that failed checksum=");
-    //Serial.println(gps.failedChecksum());
- 
-    // Testing overflow in SoftwareSerial is sometimes useful too.
-    Serial.print("Soft Serial device overflowed? ");
-    Serial.println(myGPS.overflow() ? "YES!" : "No");
+  if (!valid)
+  {
+    while (len-- > 1)
+      Serial.print('*');
+    Serial.print(' ');
+  }
+  else
+  {
+    Serial.print(val, prec);
+    int vi = abs((int)val);
+    int flen = prec + (val < 0.0 ? 2 : 1); // . and -
+    flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
+    for (int i=flen; i<len; ++i)
+      Serial.print(' ');
+  }
+  smartDelay(0);
+}
 
-      while (myGPS.available() > 0)
-      {
-        
-        gps.encode(myGPS.read());
-    
-       if(gps.location.isUpdated()){
-            Serial.print("LAT="); Serial.print(gps.location.lat(), 6);
-            Serial.print("  LON="); Serial.print(gps.location.lng(), 6);
-            Serial.print("  Speed=");Serial.println(gps.speed.kmph());
-       }
-     }
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = 0;
+  do 
+  {
+    while (myGPS.available())
+      gps.encode(myGPS.read());
+      start++;
+  } while (start < ms);
 }
 
 void power_on(){

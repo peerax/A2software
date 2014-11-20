@@ -16,7 +16,6 @@ String Device_id;
 String lati;
 String lon;
 String speeds;
-String HTTPGET;
 
 // The TinyGPS++ object
 TinyGPSPlus gps;
@@ -44,22 +43,13 @@ void setup()
 
 void loop()
 {
-    HTTPGET = "";
     boolean feedResult = getGPS();
     digitalWrite(linkLED, HIGH);
     if(!feedResult)
        softReset();
-       
-    while(sendATcommand("AT+CIPMUX=0", "OK", 3000)==0);
-    
-    while(sendATcommand("AT+CSTT=\"internet\"", "OK", 3000)==0);
-
-    while(sendATcommand("AT+CIICR", "OK", 3000)==0);
-    
-    while(sendATcommand("AT+CIFSR", "ERROR", 3000)==1);
     
     Conn_Error_Count = 0; // Initial Error value
-    while(sendATcommand("AT+CIPSTART=\"TCP\",\"www.surinrobot.com\",\"80\"", "CONNEC", 500) == 0)
+    while(sendATcommand("AT+HTTPINIT", "OK", 500) == 0)
     {
       Conn_Error_Count++;
       if(Conn_Error_Count > 10)
@@ -68,50 +58,59 @@ void loop()
     
     Serial.println("connected ok");
     
+    
     myGSM.println("AT+CIPSEND");
     delay(250);
     myGSM.print("GET /point/serverside/point_avr_post.php?lat="); 
+    Serial.print("GET /point/serverside/point_avr_post.php?lat=");
     delay(250);
     myGSM.print(gps.location.lat(),6);
+    Serial.print(gps.location.lat(),6);
     delay(250);
     myGSM.print("&lon=");
+    Serial.print("&lon=");
     delay(250);
     myGSM.print(gps.location.lng(),6);
+    Serial.print(gps.location.lng(),6);
     delay(250);
-    myGSM.print("&device_id=");
+     myGSM.print("&device_id=");
+     Serial.print("&device_id=");
     delay(250);
     device_id();
     myGSM.print(Device_id);
+    Serial.print(Device_id);
     delay(250);
-    myGSM.print("&b=");
-    delay(250);
-    myGSM.print(build);
-    Serial.print(build);
-    delay(250);
-    myGSM.print("&speed=");
-    Serial.print("&speed=");
-    delay(250);
-    myGSM.print(gps.speed.kmph());
-    Serial.println(gps.speed.kmph());
-    delay(250);
-    myGSM.print(" HTTP/1.1\r\n");
-    delay(500);
-    myGSM.print("host:www.surinrobot.com\r\n");
-    delay(250);
+  myGSM.print("&b=");
+  Serial.print("&b=");
+  delay(250);
+  myGSM.print(build);
+  Serial.print(build);
+  delay(250);
+  myGSM.print("&speed=");
+  Serial.print("&speed=");
+  delay(250);
+  myGSM.print(gps.speed.kmph());
+  Serial.print(gps.speed.kmph());
+  delay(250);
+  myGSM.print(" HTTP/1.1\r\n");
+  delay(500);
+  myGSM.print("host:www.surinrobot.com\r\n");
+  delay(250);
   
-    myGSM.print("Connection: close");         //working as well
-    myGSM.print("\r\n");
-    myGSM.print("\r\n");
-    delay(250);
+  myGSM.print("Connection: close");         //working as well
+  myGSM.print("\r\n");
+  myGSM.print("\r\n");
+  delay(250);
   
-    myGSM.write(0x1A);
-    delay(2000);
-    myGSM.println();
-    Serial.println("Complete");
+  myGSM.write(0x1A);
+  delay(500);
+  myGSM.println();
+  Serial.println("Complete");
+  myGSM.println("AT+CIPCLOSE");//close the connection
+  delay(100);
   
-    while(sendATcommand("AT+CIPCLOSE", "CLOSE OK", 3000)==0);
-  
-    while(sendATcommand("AT+CIPSHUT", "SHUT OK", 3000)==0); 
+  myGSM.println("AT+CIPSHUT=0");
+  delay(100); 
     
     digitalWrite(linkLED,LOW);
      /* 
@@ -124,7 +123,7 @@ void loop()
     printFloat(gps.speed.kmph(), gps.speed.isValid(), 6, 2);
  */
     Serial.println();
-    delay(7000);
+    delay(8000);
 }
 /*
   Reset AVR
@@ -212,15 +211,34 @@ void InnitSim900()
     Serial.println(answer1);
     */
     while(sendATcommand("AT+CREG?", "+CREG: 1,1", 500) == 0);
-        
-    while(sendATcommand("AT+CGACT?", "+CGACT: 3,0", 3000)==0);
+  Serial.println("connected");
 
+      /***
+        Attach to GPRS network
+        
+        Chech for attach Network
+        
+        AT+CGATT?
+        +CGATT:0
+        OK
+    ***/
     while(sendATcommand("AT+CGATT=1", "OK", 3000)==0);
+    Serial.println("GPRS Attached");
     
-    while(sendATcommand("AT+COPS=?", "DTAC", 3000)==0);
+    /***
+        Check network provider
+    ***/
+    while(sendATcommand("AT+COPS=?", "OK", 3000)==0);
+    Serial.println("GPRS Attached");
+
+    while(sendATcommand("AT+SAPBR=3,1,\"APN\",\"internet\"", "OK", 3000)==0);
+    Serial.println("resister APN"); 
+    
+    while(sendATcommand("AT+SAPBR=1,1", "OK", 3000)==0);
+    Serial.println("resister APN"); 
     
     while(sendATcommand("AT+CIPSPRT=0", "OK", 3000)==0);
-       
+   
 }
 
 int8_t sendATcommand(char* ATcommand, char* expected_answer, unsigned int timeout){
@@ -241,7 +259,6 @@ int8_t sendATcommand(char* ATcommand, char* expected_answer, unsigned int timeou
     previous = millis();
 
     // this loop waits for the answer
-    int 
     do{
         // if there are data in the UART input buffer, reads it and checks for the asnwer
         if(myGSM.available() != 0){    
